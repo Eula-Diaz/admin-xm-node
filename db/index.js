@@ -1,6 +1,7 @@
 const mysql = require("mysql");
 const config = require("./config");
 const { debug } = require("../utils/constant");
+const { isObject } = require('../utils')
 
 function connect() {
   return mysql.createConnection({
@@ -48,7 +49,85 @@ function queryOne(sql) {
   })
 }
 
+function insert(model, tableName) {
+  return new Promise((resolve, reject) => {
+    if (!isObject(model)) {
+      reject(new Error('插入数据库失败，插入数据非对象'))
+    } else {
+      const keys = []
+      const values = []
+      Object.keys(model).forEach(key => {
+        if (model.hasOwnProperty(key)) {
+          keys.push(`\`${key}\``)
+          values.push(`\'${model[key]}\'`)
+        }
+      })
+      if (keys.length > 0 && values.length > 0) {
+        let sql = `INSERT INTO \`${tableName}\` (`
+        const keysString = keys.join(',')
+        const valuesString = values.join(',')
+        sql = `${sql} ${keysString}) VALUES (${valuesString})`
+        debug && console.log(sql)
+        const conn =connect()
+        try {
+          conn.query(sql, (err, result) => {
+            if (err) {
+              reject(err)
+            } else {
+              resolve(result)
+            }
+          })
+        } catch (err) {
+          reject(err)
+        } finally {
+          conn.end()
+        }
+      } else {
+        reject(new Error('插入数据库失败，对象中没有任何属性'))
+      }
+    }
+  })
+}
+
+function update(model, tableName, where) {
+  return new Promise((resolve, reject) => {
+    if (!isObject(model)) {
+      reject(new Error('插入数据库失败，插入数据非对象'))
+    } else {
+      const entry = []
+      Object.keys(model).forEach(key => {
+        if (model.hasOwnProperty(key)) {
+          entry.push(`\`${key}\`=\'${model[key]}\'`)
+        }
+      })
+      if (entry.length > 0) {
+        let sql = `UPDATE \`${tableName}\` SET`
+        sql = `${sql} ${entry.join(',')} ${where}`
+        debug && console.log(sql)
+        const conn =connect()
+        try {
+          conn.query(sql, (err, result) => {
+            if (err) {
+              reject(err)
+            } else {
+              resolve(result)
+            }
+          })
+        } catch (err) {
+          reject(err)
+        } finally {
+          conn.end()
+        }
+      } else {
+        reject(new Error('插入数据库失败，对象中没有任何属性'))
+      }
+    }
+  })
+}
+
 module.exports = {
   querySql,
-  queryOne
+  queryOne,
+  insert,
+  update
 };
